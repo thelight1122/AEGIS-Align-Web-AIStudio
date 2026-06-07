@@ -73,6 +73,28 @@ const ResonanceWave = ({ color, rotationSpeed, radius, mouseReact = false }: { c
   );
 }
 
+const StarParallax = () => {
+  const ref = useRef<THREE.Group>(null);
+  
+  useFrame(() => {
+    if (ref.current) {
+      // Move stars up and rotate slightly as we scroll down
+      const scrollY = window.scrollY;
+      const targetY = scrollY * 0.005;
+      const targetRotX = scrollY * 0.0002;
+      
+      ref.current.position.y = THREE.MathUtils.lerp(ref.current.position.y, targetY, 0.05);
+      ref.current.rotation.x = THREE.MathUtils.lerp(ref.current.rotation.x, targetRotX, 0.05);
+    }
+  });
+
+  return (
+    <group ref={ref}>
+      <Stars radius={100} depth={50} count={1000} factor={2} saturation={1} fade speed={0.5} />
+    </group>
+  );
+};
+
 export const HeroScene: React.FC = () => {
   return (
     <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
@@ -98,7 +120,74 @@ export const HeroScene: React.FC = () => {
         </Float>
 
         <Environment preset="night" />
-        <Stars radius={100} depth={50} count={1000} factor={2} saturation={1} fade speed={0.5} />
+        <StarParallax />
+      </Canvas>
+    </div>
+  );
+};
+
+export const SingularityScene: React.FC = () => {
+  return (
+    <div className="w-full h-full absolute inset-0">
+      <Canvas camera={{ position: [0, 0, 8], fov: 45 }} dpr={[1, 2]}>
+        <ambientLight intensity={0.2} />
+        <pointLight position={[10, 10, 10]} intensity={2} color="#00E5FF" />
+        <pointLight position={[-10, -10, -10]} intensity={2} color="#9D00FF" />
+        <Environment preset="night" />
+        
+        <Float speed={2} rotationIntensity={1.5} floatIntensity={1}>
+          <Sphere args={[1.5, 32, 32]}>
+            <MeshDistortMaterial 
+              color="#000000" 
+              emissive="#00E5FF" 
+              emissiveIntensity={0.5} 
+              distort={0.5} 
+              speed={3} 
+              wireframe 
+            />
+          </Sphere>
+          <Sphere args={[1.2, 24, 24]}>
+            <MeshDistortMaterial 
+              color="#000000" 
+              emissive="#9D00FF" 
+              emissiveIntensity={0.8} 
+              distort={0.3} 
+              speed={2} 
+            />
+          </Sphere>
+        </Float>
+      </Canvas>
+    </div>
+  );
+};
+
+export const SubstrateScene: React.FC = () => {
+  return (
+    <div className="w-full h-full absolute inset-0">
+      <Canvas camera={{ position: [0, 0, 8], fov: 45 }} dpr={[1, 2]}>
+        <ambientLight intensity={0.2} />
+        <pointLight position={[10, 10, 10]} intensity={1} color="#FF007F" />
+        <pointLight position={[-10, -10, -10]} intensity={1} color="#00E5FF" />
+        <Environment preset="night" />
+        
+        <Float speed={1.5} rotationIntensity={0.8} floatIntensity={0.5}>
+          <group rotation={[Math.PI / 4, Math.PI / 4, 0]}>
+            <Torus args={[3, 0.02, 16, 100]} rotation={[Math.PI / 2, 0, 0]}>
+              <meshStandardMaterial color="#FF007F" wireframe transparent opacity={0.4} emissive="#FF007F" emissiveIntensity={0.5} />
+            </Torus>
+            <Torus args={[2.5, 0.02, 16, 100]} rotation={[0, Math.PI / 2, 0]}>
+              <meshStandardMaterial color="#00E5FF" wireframe transparent opacity={0.4} emissive="#00E5FF" emissiveIntensity={0.5} />
+            </Torus>
+            <Torus args={[2, 0.02, 16, 100]} rotation={[0, 0, Math.PI / 2]}>
+              <meshStandardMaterial color="#9D00FF" wireframe transparent opacity={0.4} emissive="#9D00FF" emissiveIntensity={0.5} />
+            </Torus>
+            
+            {/* Core Node */}
+            <Sphere args={[0.5, 16, 16]}>
+              <meshStandardMaterial color="#FFFFFF" emissive="#FFFFFF" emissiveIntensity={1} />
+            </Sphere>
+          </group>
+        </Float>
       </Canvas>
     </div>
   );

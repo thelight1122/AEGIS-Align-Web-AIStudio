@@ -6,9 +6,174 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { HeroScene, GovernanceScene } from './components/AEGISScene';
+import { HeroScene, GovernanceScene, SingularityScene, SubstrateScene } from './components/AEGISScene';
 import { TensorDiagram, IDSDiagram, ForceVsFlowDiagram } from './components/AEGISDiagrams';
 import { ArrowDown, Menu, X, Shield, Zap, Layers, RefreshCcw, FileText } from 'lucide-react';
+import { GoogleGenAI } from "@google/genai";
+import { Laureate } from './types';
+
+const laureates: Laureate[] = [
+  {
+    name: "Dr. Aris Thorne",
+    role: "Chief Architect",
+    desc: "Visionary behind the Adaptive Equilibrium substrate and the 4-Tensor model.",
+    image: "https://picsum.photos/seed/architect/400/400"
+  },
+  {
+    name: "Elena Vance",
+    role: "Ethos Lead",
+    desc: "Pioneer of non-force governance and the Sovereignty Preservation protocols.",
+    image: "https://picsum.photos/seed/ethos/400/400"
+  },
+  {
+    name: "Marcus Chen",
+    role: "Sentinel Engineer",
+    desc: "Lead developer of the IDS (Identify-Define-Suggest) resonance loop.",
+    image: "https://picsum.photos/seed/sentinel/400/400"
+  }
+];
+
+const TeamCard = ({ laureate }: { laureate: Laureate }) => {
+  return (
+    <motion.div 
+      whileHover={{ y: -10 }}
+      className="bg-aegis-panel border border-stone-800 rounded-xl overflow-hidden group hover:border-aegis-cyan/50 transition-all duration-300"
+    >
+      <div className="aspect-square overflow-hidden relative">
+        <img 
+          src={laureate.image} 
+          alt={laureate.name} 
+          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-aegis-dark via-transparent to-transparent opacity-60"></div>
+      </div>
+      <div className="p-6">
+        <h4 className="text-white font-bold text-xl mb-1">{laureate.name}</h4>
+        <div className="text-aegis-cyan text-xs font-bold tracking-widest uppercase mb-3">{laureate.role}</div>
+        <p className="text-stone-400 text-sm leading-relaxed">{laureate.desc}</p>
+      </div>
+    </motion.div>
+  );
+};
+
+const AIChat = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim() || loading) return;
+
+    const userMsg = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setLoading(true);
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        config: {
+          systemInstruction: "You are AEGIS Intelligence, the voice of the Adaptive Equilibrium & Governance Integration System. Your purpose is to explain the AEGIS Protocol, its axioms, and its philosophy of non-force governance. Be elegant, precise, and slightly detached but deeply compassionate. Use the AEGIS Canon as your primary source of truth. If asked something outside the protocol, relate it back to the principles of balance, flow, and sovereignty.",
+        },
+        contents: [...messages.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.text }] })), { role: 'user', parts: [{ text: userMsg }] }]
+      });
+
+      setMessages(prev => [...prev, { role: 'ai', text: response.text || "Resonance failure. Please rephrase." }]);
+    } catch (error) {
+      console.error(error);
+      setMessages(prev => [...prev, { role: 'ai', text: "Signal lost. Connection to the substrate interrupted." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-8 right-8 z-[60] w-16 h-16 bg-aegis-cyan text-black rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(0,229,255,0.4)] hover:shadow-[0_0_30px_rgba(0,229,255,0.6)] transition-all"
+      >
+        <Zap size={28} />
+      </motion.button>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-end p-4 sm:p-8 pointer-events-none">
+          <motion.div 
+            initial={{ opacity: 0, y: 100, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="w-full max-w-md h-[500px] bg-aegis-panel border border-stone-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
+          >
+            <div className="p-4 border-b border-stone-800 bg-black/50 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-aegis-cyan animate-pulse"></div>
+                <span className="font-bold tracking-widest text-xs uppercase text-white">AEGIS Intelligence</span>
+              </div>
+              <button onClick={() => setIsOpen(false)} className="text-stone-500 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+              {messages.length === 0 && (
+                <div className="text-center py-8 text-stone-500 text-sm italic">
+                  "The substrate is active. What would you like to understand about the AEGIS Protocol?"
+                </div>
+              )}
+              {messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] p-3 rounded-xl text-sm ${m.role === 'user' ? 'bg-aegis-cyan/20 text-aegis-cyan border border-aegis-cyan/30' : 'bg-stone-900 text-stone-300 border border-stone-800'}`}>
+                    {m.text}
+                  </div>
+                </div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-stone-900 p-3 rounded-xl border border-stone-800">
+                    <div className="flex gap-1">
+                      <div className="w-1.5 h-1.5 bg-stone-600 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 bg-stone-600 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                      <div className="w-1.5 h-1.5 bg-stone-600 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-stone-800 bg-black/30 flex gap-2">
+              <input 
+                type="text" 
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Ask about the Canon..."
+                className="flex-1 bg-black border border-stone-800 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-aegis-cyan transition-colors text-white"
+              />
+              <button 
+                onClick={handleSend}
+                disabled={loading}
+                className="p-2 bg-aegis-cyan text-black rounded-lg hover:bg-white transition-colors disabled:opacity-50"
+              >
+                <ArrowDown size={20} className="-rotate-90" />
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </>
+  );
+};
 
 const PrincipleCard = ({ title, desc, delay, icon }: { title: string, desc: string, delay: string, icon: React.ReactNode }) => {
   return (
@@ -33,9 +198,14 @@ const CanonModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void 
             <FileText className="text-aegis-cyan" size={24} />
             <h2 className="font-sans font-bold text-xl text-white tracking-widest uppercase">AEGIS CANON v1.0</h2>
           </div>
-          <button onClick={onClose} className="text-stone-400 hover:text-white transition-colors p-2 rounded-full hover:bg-stone-800">
+          <motion.button 
+            whileHover={{ scale: 1.1, backgroundColor: "rgba(39, 39, 42, 1)" }} 
+            whileTap={{ scale: 0.9 }} 
+            onClick={onClose} 
+            className="text-stone-400 hover:text-white transition-colors p-2 rounded-full"
+          >
             <X size={24} />
-          </button>
+          </motion.button>
         </div>
         
         <div className="p-6 md:p-10 overflow-y-auto font-sans text-base text-stone-300 leading-relaxed space-y-12 custom-scrollbar">
@@ -288,9 +458,14 @@ const CanonModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void 
 
         </div>
         <div className="p-6 border-t border-stone-800 bg-black/50 flex justify-end">
-          <button onClick={onClose} className="px-6 py-2 bg-stone-800 text-white rounded hover:bg-stone-700 transition-colors font-bold tracking-wider uppercase text-sm">
+          <motion.button 
+            whileHover={{ scale: 1.05, backgroundColor: "rgba(63, 63, 70, 1)" }} 
+            whileTap={{ scale: 0.95 }} 
+            onClick={onClose} 
+            className="px-6 py-2 bg-stone-800 text-white rounded transition-colors font-bold tracking-wider uppercase text-sm shadow-md"
+          >
             Acknowledge
-          </button>
+          </motion.button>
         </div>
       </div>
     </div>
@@ -306,6 +481,13 @@ const App: React.FC = () => {
   const heroY = useTransform(scrollY, [0, 1000], [0, 300]);
   const heroOpacity = useTransform(scrollY, [0, 800], [1, 0]);
 
+  const singularityRef = useRef<HTMLElement>(null);
+  const { scrollYProgress: singScroll } = useScroll({
+    target: singularityRef,
+    offset: ["start 80%", "end 20%"]
+  });
+  const singOpacity = useTransform(singScroll, [0, 0.3, 0.7, 1], [0, 1, 1, 0]);
+
   const substrateRef = useRef<HTMLElement>(null);
   const { scrollYProgress: subScroll } = useScroll({
     target: substrateRef,
@@ -313,6 +495,7 @@ const App: React.FC = () => {
   });
   const subY1 = useTransform(subScroll, [0, 1], [-150, 150]);
   const subY2 = useTransform(subScroll, [0, 1], [150, -150]);
+  const subOpacity = useTransform(subScroll, [0, 0.3, 0.7, 1], [0, 1, 1, 0]);
 
   const govRef = useRef<HTMLElement>(null);
   const { scrollYProgress: govScroll } = useScroll({
@@ -359,35 +542,43 @@ const App: React.FC = () => {
           </div>
           
           <div className="hidden md:flex items-center gap-8 text-xs font-bold tracking-widest text-stone-400 uppercase">
-            <a href="#singularity" onClick={scrollToSection('singularity')} className="hover:text-aegis-cyan transition-colors cursor-pointer">Singularity</a>
-            <a href="#substrate" onClick={scrollToSection('substrate')} className="hover:text-aegis-magenta transition-colors cursor-pointer">Substrate</a>
-            <a href="#governance" onClick={scrollToSection('governance')} className="hover:text-aegis-purple transition-colors cursor-pointer">Governance</a>
-            <button 
+            <motion.a whileHover={{ scale: 1.05, color: '#00E5FF' }} whileTap={{ scale: 0.95 }} href="#singularity" onClick={scrollToSection('singularity')} className="transition-colors cursor-pointer">Singularity</motion.a>
+            <motion.a whileHover={{ scale: 1.05, color: '#FF007F' }} whileTap={{ scale: 0.95 }} href="#substrate" onClick={scrollToSection('substrate')} className="transition-colors cursor-pointer">Substrate</motion.a>
+            <motion.a whileHover={{ scale: 1.05, color: '#9D00FF' }} whileTap={{ scale: 0.95 }} href="#governance" onClick={scrollToSection('governance')} className="transition-colors cursor-pointer">Governance</motion.a>
+            <motion.button 
               onClick={() => setCanonOpen(true)}
+              animate={{ boxShadow: ["0px 0px 0px rgba(255,255,255,0)", "0px 0px 15px rgba(255,255,255,0.4)", "0px 0px 0px rgba(255,255,255,0)"] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               className="px-5 py-2 bg-white text-black rounded-full hover:bg-stone-200 transition-colors shadow-sm cursor-pointer font-bold uppercase tracking-widest text-xs"
             >
               Read Canon
-            </button>
+            </motion.button>
           </div>
 
-          <button className="md:hidden text-white p-2" onClick={() => setMenuOpen(!menuOpen)}>
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="md:hidden text-white p-2" onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? <X /> : <Menu />}
-          </button>
+          </motion.button>
         </div>
       </nav>
 
       {/* Mobile Menu */}
       {menuOpen && (
         <div className="fixed inset-0 z-40 bg-aegis-dark flex flex-col items-center justify-center gap-8 text-xl font-sans font-bold animate-fade-in">
-            <a href="#singularity" onClick={scrollToSection('singularity')} className="hover:text-aegis-cyan transition-colors cursor-pointer uppercase tracking-widest">Singularity</a>
-            <a href="#substrate" onClick={scrollToSection('substrate')} className="hover:text-aegis-magenta transition-colors cursor-pointer uppercase tracking-widest">Substrate</a>
-            <a href="#governance" onClick={scrollToSection('governance')} className="hover:text-aegis-purple transition-colors cursor-pointer uppercase tracking-widest">Governance</a>
-            <button 
+            <motion.a whileHover={{ scale: 1.05, color: '#00E5FF' }} whileTap={{ scale: 0.95 }} href="#singularity" onClick={scrollToSection('singularity')} className="transition-colors cursor-pointer uppercase tracking-widest">Singularity</motion.a>
+            <motion.a whileHover={{ scale: 1.05, color: '#FF007F' }} whileTap={{ scale: 0.95 }} href="#substrate" onClick={scrollToSection('substrate')} className="transition-colors cursor-pointer uppercase tracking-widest">Substrate</motion.a>
+            <motion.a whileHover={{ scale: 1.05, color: '#9D00FF' }} whileTap={{ scale: 0.95 }} href="#governance" onClick={scrollToSection('governance')} className="transition-colors cursor-pointer uppercase tracking-widest">Governance</motion.a>
+            <motion.button 
               onClick={() => { setMenuOpen(false); setCanonOpen(true); }} 
+              animate={{ boxShadow: ["0px 0px 0px rgba(255,255,255,0)", "0px 0px 15px rgba(255,255,255,0.4)", "0px 0px 0px rgba(255,255,255,0)"] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               className="px-6 py-3 bg-white text-black rounded-full shadow-lg cursor-pointer uppercase tracking-widest text-sm"
             >
               Read Canon
-            </button>
+            </motion.button>
         </div>
       )}
 
@@ -415,26 +606,32 @@ const App: React.FC = () => {
           </p>
           
           <div className="flex justify-center">
-             <a href="#singularity" onClick={scrollToSection('singularity')} className="group flex flex-col items-center gap-3 text-xs font-bold tracking-widest text-stone-500 hover:text-white transition-colors cursor-pointer uppercase">
+             <motion.a 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                href="#singularity" 
+                onClick={scrollToSection('singularity')} 
+                className="group flex flex-col items-center gap-3 text-xs font-bold tracking-widest text-stone-500 hover:text-white transition-colors cursor-pointer uppercase"
+             >
                 <span>Initiate Sequence</span>
                 <span className="p-3 border border-stone-800 rounded-full group-hover:border-aegis-cyan group-hover:shadow-[0_0_15px_rgba(0,229,255,0.3)] transition-all bg-black/50">
                     <ArrowDown size={16} className="group-hover:text-aegis-cyan" />
                 </span>
-             </a>
+             </motion.a>
           </div>
         </div>
       </header>
 
       <main>
         {/* Singularity / Introduction */}
-        <section id="singularity" className="py-24 bg-black border-t border-stone-900">
-          <motion.div 
-            initial={{ opacity: 0, y: 60 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-12 gap-12 items-start"
-          >
+        <section id="singularity" ref={singularityRef} className="py-24 bg-black border-t border-stone-900 relative overflow-hidden min-h-screen flex flex-col justify-center">
+          <motion.div className="absolute inset-0 z-0 opacity-50" style={{ opacity: singOpacity }}>
+            <SingularityScene />
+          </motion.div>
+          
+          <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none"></div>
+
+          <div className="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-12 gap-12 items-start relative z-10">
             <div className="md:col-span-4">
               <div className="inline-block mb-3 text-xs font-bold tracking-widest text-aegis-cyan uppercase">Paradigm Shift</div>
               <h2 className="font-sans font-bold text-4xl mb-6 leading-tight text-white">Governance by Resonance</h2>
@@ -448,24 +645,30 @@ const App: React.FC = () => {
                 The <strong className="text-white">AEGIS Paradigm</strong> relies on self-regulation, recursive identity, and internal coherence. It is sustainable, creates resonance, and relies on "Understand who you are." This is <strong className="text-aegis-cyan">Flow</strong>.
               </p>
             </div>
-          </motion.div>
+          </div>
           <motion.div 
             initial={{ opacity: 0, y: 60 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-            className="container mx-auto px-6 mt-12"
+            className="container mx-auto px-6 mt-12 relative z-10"
           >
               <ForceVsFlowDiagram />
           </motion.div>
         </section>
 
         {/* The Substrate */}
-        <section id="substrate" ref={substrateRef} className="py-24 bg-aegis-panel border-t border-stone-900 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
+        <section id="substrate" ref={substrateRef} className="py-24 bg-aegis-panel border-t border-stone-900 relative overflow-hidden min-h-screen flex items-center">
+            <motion.div className="absolute inset-0 z-0 opacity-50" style={{ opacity: subOpacity }}>
+              <SubstrateScene />
+            </motion.div>
+
+            <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none z-0">
                 <motion.div style={{ y: subY1 }} className="w-96 h-96 rounded-full bg-aegis-cyan blur-[120px] absolute top-[-100px] left-[-100px]"></motion.div>
                 <motion.div style={{ y: subY2 }} className="w-96 h-96 rounded-full bg-aegis-magenta blur-[120px] absolute bottom-[-100px] right-[-100px]"></motion.div>
             </div>
+            
+            <div className="absolute inset-0 bg-aegis-panel/60 z-0 pointer-events-none"></div>
 
             <motion.div 
                 initial={{ opacity: 0, y: 60 }}
@@ -594,6 +797,22 @@ const App: React.FC = () => {
              </motion.div>
         </section>
 
+        {/* Team Section */}
+        <section className="py-24 bg-black border-t border-stone-900">
+          <div className="container mx-auto px-6">
+            <div className="text-center mb-16">
+              <div className="inline-block mb-3 text-xs font-bold tracking-widest text-stone-500 uppercase">THE LAUREATES</div>
+              <h2 className="font-sans font-bold text-3xl md:text-5xl mb-4 text-white">The Minds Behind AEGIS</h2>
+              <p className="text-stone-400 max-w-2xl mx-auto font-mono">Architects of the Adaptive Equilibrium substrate.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {laureates.map((l, i) => (
+                <TeamCard key={i} laureate={l} />
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Collimation / Conclusion */}
         <section ref={govRef} className="py-32 bg-black relative overflow-hidden flex items-center justify-center min-h-[60vh]">
             <motion.div className="absolute inset-0 z-0" style={{ y: govY, opacity: govOpacity }}>
@@ -624,6 +843,8 @@ const App: React.FC = () => {
             </div>
         </div>
       </footer>
+      
+      <AIChat />
     </div>
   );
 };
